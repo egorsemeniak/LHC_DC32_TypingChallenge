@@ -1,10 +1,9 @@
-# v0.0.4
+# v0.0.6
 
 """ 
 Typing Challenge for DEF CON 32
 This challenge will be hosted at the LHC Room
 """
-
 
 # Importing Packages
 import pygame
@@ -16,9 +15,8 @@ import os
 pygame.init()
 
 # Screen dimensions
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
+SCREEN = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+SCREEN_WIDTH, SCREEN_HEIGHT = SCREEN.get_size()
 pygame.display.set_caption("Typing Minigame")
 
 # Fonts and Colors
@@ -40,8 +38,19 @@ COLOR_FIRST = (255, 165, 0)  # Orange
 COLOR_SECOND = (128, 0, 128)  # Purple
 COLOR_THIRD = (0, 0, 255)  # Blue
 
+# Paths
+ASSETS_FOLDER = 'assets'
+LEADERBOARD_FILE = os.path.join(ASSETS_FOLDER, 'leaderboard.txt')
+BACKGROUND_IMAGE = os.path.join(ASSETS_FOLDER, 'background.png')
+
+# Load the background image
+background = pygame.image.load(BACKGROUND_IMAGE)
+background = pygame.transform.scale(background, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
 # Pre-planned texts
 texts = [
+    "The quick brown fox jumps over the lazy dog.",
+    "Python is a great programming language for beginners.",
     "Typing games help improve typing speed and accuracy. This is a longer text that needs to scroll horizontally as you type."
 ]
 
@@ -56,9 +65,6 @@ end_time = 0
 typing_started = False
 scroll_offset = 0
 username = ""
-
-# Leaderboard file
-LEADERBOARD_FILE = 'leaderboard.txt'
 
 def draw_text():
     global SCREEN, scroll_offset
@@ -105,7 +111,6 @@ def draw_text():
     pygame.display.flip()
 
     return quit_hovered, restart_hovered
-
 
 def draw_button(text, position, is_hovered):
     color = COLOR_BUTTON_HOVER if is_hovered else COLOR_BUTTON
@@ -163,7 +168,12 @@ def draw_leaderboard():
         SCREEN.blit(text_surface, text_rect)
         y_offset += 50
 
+    # Draw the "Back" button
+    mouse_pos = pygame.mouse.get_pos()
+    back_hovered = draw_button("Back", (SCREEN.get_width() // 2, SCREEN_HEIGHT - 50), (SCREEN.get_width() // 2 - 50 <= mouse_pos[0] <= SCREEN.get_width() // 2 + 50) and (SCREEN_HEIGHT - 75 <= mouse_pos[1] <= SCREEN_HEIGHT - 25)).collidepoint(mouse_pos)
+    
     pygame.display.flip()
+    return back_hovered
 
 def load_leaderboard():
     if not os.path.exists(LEADERBOARD_FILE):
@@ -284,7 +294,7 @@ def main_menu():
     global SCREEN, game_active, user_input, text_index, current_text, start_time, game_over, typing_started, scroll_offset
 
     while True:
-        SCREEN.fill(COLOR_BG)
+        SCREEN.blit(background, (0, 0))
 
         mouse_pos = pygame.mouse.get_pos()
         new_game_hovered = draw_button("New Game", (SCREEN.get_width() // 2, SCREEN.get_height() // 3), (SCREEN.get_width() // 2 - 100 <= mouse_pos[0] <= SCREEN.get_width() // 2 + 100) and (SCREEN.get_height() // 3 - 25 <= mouse_pos[1] <= SCREEN.get_height() // 3 + 25)).collidepoint(mouse_pos)
@@ -310,8 +320,18 @@ def main_menu():
                     scroll_offset = 0
                     return
                 elif leaderboard_hovered:
-                    draw_leaderboard()
-                    pygame.time.wait(2000)
+                    while True:
+                        back_hovered = draw_leaderboard()
+                        for event in pygame.event.get():
+                            if event.type == pygame.QUIT:
+                                pygame.quit()
+                                sys.exit()
+                            elif event.type == pygame.MOUSEBUTTONDOWN:
+                                if back_hovered:
+                                    return  # Return to main menu
+                            elif event.type == pygame.VIDEORESIZE:
+                                SCREEN_WIDTH, SCREEN_HEIGHT = event.w, event.h
+                                SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
                 elif quit_hovered:
                     pygame.quit()
                     sys.exit()

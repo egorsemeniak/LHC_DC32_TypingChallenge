@@ -1,4 +1,4 @@
-# v0.0.3
+# v0.0.4
 
 """ 
 Typing Challenge for DEF CON 32
@@ -26,6 +26,7 @@ FONT = pygame.font.Font(pygame.font.match_font('courier'), 36)
 BUTTON_FONT = pygame.font.Font(None, 48)
 TIMER_FONT = pygame.font.Font(None, 36)
 LEADERBOARD_FONT = pygame.font.Font(None, 36)
+INPUT_FONT = pygame.font.Font(pygame.font.match_font('courier'), 36)
 COLOR_BG = (30, 30, 30)
 COLOR_TEXT_FADED = (100, 100, 100)
 COLOR_TEXT_CORRECT = (255, 255, 255)
@@ -41,8 +42,6 @@ COLOR_THIRD = (0, 0, 255)  # Blue
 
 # Pre-planned texts
 texts = [
-    "The quick brown fox jumps over the lazy dog.",
-    "Python is a great programming language for beginners.",
     "Typing games help improve typing speed and accuracy. This is a longer text that needs to scroll horizontally as you type."
 ]
 
@@ -82,6 +81,9 @@ def draw_text():
     # Scroll the text if cursor goes beyond the center of the screen width
     if cursor_x > SCREEN_WIDTH // 2:
         scroll_offset += FONT.size(' ')[0]
+    # Scroll the text back if cursor goes before the starting scroll threshold
+    elif cursor_x < 50 and scroll_offset > 0:
+        scroll_offset -= FONT.size(' ')[0]
 
     # Draw the blinking cursor
     if time.time() % 1 < 0.5:
@@ -103,6 +105,7 @@ def draw_text():
     pygame.display.flip()
 
     return quit_hovered, restart_hovered
+
 
 def draw_button(text, position, is_hovered):
     color = COLOR_BUTTON_HOVER if is_hovered else COLOR_BUTTON
@@ -195,8 +198,8 @@ def prompt_username(elapsed_time):
     input_box = pygame.Rect(SCREEN.get_width() // 2 - 100, SCREEN.get_height() // 2 - 25, 200, 50)
     color_inactive = pygame.Color('lightskyblue3')
     color_active = pygame.Color('dodgerblue2')
-    color = color_inactive
-    active = False
+    color = color_active  # Set the color to active initially
+    active = True  # Make the input box active initially
     done = False
     username = ''
 
@@ -204,7 +207,9 @@ def prompt_username(elapsed_time):
     seconds = int(elapsed_time % 60)
     milliseconds = int((elapsed_time * 1000) % 1000)
     time_text = f"{minutes:02}:{seconds:02}:{milliseconds:03}"
-    message_text = f"Good Job! You are in Top 10. Please Enter Your Handle\nYour Time: {time_text}"
+    message_text1 = "Good Job! You are in Top 10."
+    message_text2 = "Please Enter Your Handle"
+    time_display_text = f"Your Time: {time_text}"
 
     while not done:
         for event in pygame.event.get():
@@ -228,15 +233,52 @@ def prompt_username(elapsed_time):
                             username += event.unicode
 
         SCREEN.fill(COLOR_BG)
-        message_surface = TIMER_FONT.render(message_text, True, COLOR_TIMER)
-        SCREEN.blit(message_surface, (SCREEN.get_width() // 2 - message_surface.get_width() // 2, SCREEN.get_height() // 2 - 100))
+        message_surface1 = TIMER_FONT.render(message_text1, True, COLOR_TIMER)
+        message_surface2 = TIMER_FONT.render(message_text2, True, COLOR_TIMER)
+        time_surface = TIMER_FONT.render(time_display_text, True, COLOR_TIMER)
+        
+        SCREEN.blit(message_surface1, (SCREEN.get_width() // 2 - message_surface1.get_width() // 2, SCREEN.get_height() // 2 - 150))
+        SCREEN.blit(message_surface2, (SCREEN.get_width() // 2 - message_surface2.get_width() // 2, SCREEN.get_height() // 2 - 100))
+        SCREEN.blit(time_surface, (SCREEN.get_width() // 2 - time_surface.get_width() // 2, SCREEN.get_height() // 2 - 50))
 
-        txt_surface = FONT.render(username, True, color)
+        txt_surface = INPUT_FONT.render(username, True, color)
         width = max(200, txt_surface.get_width() + 10)
         input_box.w = width
         SCREEN.blit(txt_surface, (input_box.x + 5, input_box.y + 5))
         pygame.draw.rect(SCREEN, color, input_box, 2)
+
+        # Draw the blinking cursor
+        if time.time() % 1 < 0.5:
+            cursor_rect = pygame.Rect(input_box.x + txt_surface.get_width() + 5, input_box.y + 5, 2, txt_surface.get_height())
+            pygame.draw.rect(SCREEN, COLOR_CURSOR, cursor_rect)
+
         pygame.display.flip()
+
+def draw_top_3():
+    leaderboard = load_leaderboard()
+    x_offset = SCREEN.get_width() - 200
+    y_offset = 50
+
+    for index, entry in enumerate(leaderboard[:3]):
+        name, elapsed_time = entry
+        minutes = int(elapsed_time // 60)
+        seconds = int(elapsed_time % 60)
+        milliseconds = int((elapsed_time * 1000) % 1000)
+        time_text = f"{minutes:02}:{seconds:02}:{milliseconds:03}"
+
+        text = f"{index + 1}. {name} - {time_text}"
+        text_surface = LEADERBOARD_FONT.render(text, True, COLOR_TEXT_CORRECT)
+        text_rect = text_surface.get_rect(center=(x_offset, y_offset))
+
+        if index == 0:
+            pygame.draw.rect(SCREEN, COLOR_FIRST, text_rect.inflate(20, 10), 3)
+        elif index == 1:
+            pygame.draw.rect(SCREEN, COLOR_SECOND, text_rect.inflate(20, 10), 3)
+        elif index == 2:
+            pygame.draw.rect(SCREEN, COLOR_THIRD, text_rect.inflate(20, 10), 3)
+
+        SCREEN.blit(text_surface, text_rect)
+        y_offset += 50
 
 def main_menu():
     global SCREEN, game_active, user_input, text_index, current_text, start_time, game_over, typing_started, scroll_offset
@@ -249,6 +291,7 @@ def main_menu():
         leaderboard_hovered = draw_button("Leaderboard", (SCREEN.get_width() // 2, SCREEN.get_height() // 2), (SCREEN.get_width() // 2 - 100 <= mouse_pos[0] <= SCREEN.get_width() // 2 + 100) and (SCREEN.get_height() // 2 - 25 <= mouse_pos[1] <= SCREEN.get_height() // 2 + 25)).collidepoint(mouse_pos)
         quit_hovered = draw_button("Quit", (SCREEN.get_width() // 2, SCREEN.get_height() // 1.5), (SCREEN.get_width() // 2 - 100 <= mouse_pos[0] <= SCREEN.get_width() // 2 + 100) and (SCREEN.get_height() // 1.5 - 25 <= mouse_pos[1] <= SCREEN.get_height() // 1.5 + 25)).collidepoint(mouse_pos)
 
+        draw_top_3()
         pygame.display.flip()
 
         for event in pygame.event.get():

@@ -1,4 +1,4 @@
-# v0.0.6
+# v0.0.8
 
 """ 
 Typing Challenge for DEF CON 32
@@ -49,9 +49,7 @@ background = pygame.transform.scale(background, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
 # Pre-planned texts
 texts = [
-    "The quick brown fox jumps over the lazy dog.",
-    "Python is a great programming language for beginners.",
-    "Typing games help improve typing speed and accuracy. This is a longer text that needs to scroll horizontally as you type."
+    "a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a"
 ]
 
 # Game state
@@ -65,6 +63,14 @@ end_time = 0
 typing_started = False
 scroll_offset = 0
 username = ""
+
+# Application states
+STATE_MAIN_MENU = 0
+STATE_GAME = 1
+STATE_END_SCREEN = 2
+STATE_LEADERBOARD = 3
+
+state = STATE_MAIN_MENU
 
 def draw_text():
     global SCREEN, scroll_offset
@@ -106,8 +112,8 @@ def draw_text():
 
     # Draw the quit and restart buttons
     mouse_pos = pygame.mouse.get_pos()
-    quit_hovered = draw_button("Quit", (SCREEN.get_width() - 100, 50), (SCREEN.get_width() - 150 <= mouse_pos[0] <= SCREEN.get_width() - 50) and (25 <= mouse_pos[1] <= 75)).collidepoint(mouse_pos)
-    restart_hovered = draw_button("Restart", (SCREEN.get_width() - 250, 50), (SCREEN.get_width() - 300 <= mouse_pos[0] <= SCREEN.get_width() - 200) and (25 <= mouse_pos[1] <= 75)).collidepoint(mouse_pos)
+    quit_hovered = draw_button("Quit (Ctrl+Q)", (SCREEN.get_width() - 150, 50), (SCREEN.get_width() - 200 <= mouse_pos[0] <= SCREEN.get_width() - 100) and (25 <= mouse_pos[1] <= 75)).collidepoint(mouse_pos)
+    restart_hovered = draw_button("Restart (Ctrl+R)", (SCREEN.get_width() - 400, 50), (SCREEN.get_width() - 450 <= mouse_pos[0] <= SCREEN.get_width() - 350) and (25 <= mouse_pos[1] <= 75)).collidepoint(mouse_pos)
     pygame.display.flip()
 
     return quit_hovered, restart_hovered
@@ -291,9 +297,9 @@ def draw_top_3():
         y_offset += 50
 
 def main_menu():
-    global SCREEN, game_active, user_input, text_index, current_text, start_time, game_over, typing_started, scroll_offset
+    global SCREEN, game_active, user_input, text_index, current_text, start_time, game_over, typing_started, scroll_offset, state
 
-    while True:
+    while state == STATE_MAIN_MENU:
         SCREEN.blit(background, (0, 0))
 
         mouse_pos = pygame.mouse.get_pos()
@@ -318,20 +324,10 @@ def main_menu():
                     start_time = 0
                     typing_started = False
                     scroll_offset = 0
+                    state = STATE_GAME
                     return
                 elif leaderboard_hovered:
-                    while True:
-                        back_hovered = draw_leaderboard()
-                        for event in pygame.event.get():
-                            if event.type == pygame.QUIT:
-                                pygame.quit()
-                                sys.exit()
-                            elif event.type == pygame.MOUSEBUTTONDOWN:
-                                if back_hovered:
-                                    return  # Return to main menu
-                            elif event.type == pygame.VIDEORESIZE:
-                                SCREEN_WIDTH, SCREEN_HEIGHT = event.w, event.h
-                                SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
+                    state = STATE_LEADERBOARD
                 elif quit_hovered:
                     pygame.quit()
                     sys.exit()
@@ -340,24 +336,95 @@ def main_menu():
                 SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
 
 def main():
-    global SCREEN, user_input, text_index, current_text, game_active, start_time, end_time, game_over, typing_started, scroll_offset, username
+    global SCREEN, user_input, text_index, current_text, game_active, start_time, end_time, game_over, typing_started, scroll_offset, username, state
 
     clock = pygame.time.Clock()
 
     while True:
-        quit_hovered = False
-        restart_hovered = False
-        play_again_hovered = False
-        main_menu_hovered = False
+        if state == STATE_MAIN_MENU:
+            main_menu()
+        elif state == STATE_GAME:
+            quit_hovered = False
+            restart_hovered = False
+            play_again_hovered = False
+            main_menu_hovered = False
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            elif game_active and not game_over:
-                if event.type == pygame.MOUSEBUTTONDOWN:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif game_active and not game_over:
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        if quit_hovered:
+                            game_active = False
+                            state = STATE_MAIN_MENU  # Update state to main menu
+                        elif restart_hovered:
+                            game_active = True
+                            game_over = False
+                            user_input = ""
+                            text_index = 0
+                            current_text = texts[text_index]
+                            start_time = 0
+                            typing_started = False
+                            scroll_offset = 0
+                    elif event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_BACKSPACE:
+                            user_input = user_input[:-1]
+                            if not typing_started and user_input:
+                                start_time = time.time()
+                                typing_started = True
+                        elif event.key == pygame.K_RETURN:
+                            pass
+                        elif event.key == pygame.K_q and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+                            game_active = False
+                            state = STATE_MAIN_MENU  # Update state to main menu
+                        elif event.key == pygame.K_r and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+                            game_active = True
+                            game_over = False
+                            user_input = ""
+                            text_index = 0
+                            current_text = texts[text_index]
+                            start_time = 0
+                            typing_started = False
+                            scroll_offset = 0
+                        else:
+                            if not typing_started:
+                                start_time = time.time()
+                                typing_started = True
+                            user_input += event.unicode
+                            if user_input == current_text:
+                                game_over = True
+                                end_time = time.time()
+                                elapsed_time = end_time - start_time
+                                leaderboard = load_leaderboard()
+                                if len(leaderboard) < 10 or elapsed_time < leaderboard[-1][1]:
+                                    prompt_username(elapsed_time)
+                                    update_leaderboard(username, elapsed_time)
+                elif event.type == pygame.VIDEORESIZE:
+                    SCREEN_WIDTH, SCREEN_HEIGHT = event.w, event.h
+                    SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
+                elif game_over:
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        if play_again_hovered:
+                            game_active = True
+                            game_over = False
+                            user_input = ""
+                            text_index = 0
+                            current_text = texts[text_index]
+                            start_time = 0
+                            typing_started = False
+                            scroll_offset = 0
+                        elif main_menu_hovered:
+                            game_active = False
+                            state = STATE_MAIN_MENU  # Update state to main menu
+
+            if game_active and not game_over:
+                quit_hovered, restart_hovered = draw_text()
+                mouse_pos = pygame.mouse.get_pos()
+                if pygame.mouse.get_pressed()[0]:
                     if quit_hovered:
                         game_active = False
+                        state = STATE_MAIN_MENU  # Update state to main menu
                     elif restart_hovered:
                         game_active = True
                         game_over = False
@@ -367,43 +434,10 @@ def main():
                         start_time = 0
                         typing_started = False
                         scroll_offset = 0
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_BACKSPACE:
-                        user_input = user_input[:-1]
-                        if not typing_started and user_input:
-                            start_time = time.time()
-                            typing_started = True
-                    elif event.key == pygame.K_RETURN:
-                        pass
-                    elif event.key == pygame.K_q and (pygame.key.get_mods() & pygame.KMOD_CTRL):
-                        game_active = False
-                    elif event.key == pygame.K_n and (pygame.key.get_mods() & pygame.KMOD_CTRL):
-                        game_active = True
-                        game_over = False
-                        user_input = ""
-                        text_index = 0
-                        current_text = texts[text_index]
-                        start_time = 0
-                        typing_started = False
-                        scroll_offset = 0
-                    else:
-                        if not typing_started:
-                            start_time = time.time()
-                            typing_started = True
-                        user_input += event.unicode
-                        if user_input == current_text:
-                            game_over = True
-                            end_time = time.time()
-                            elapsed_time = end_time - start_time
-                            leaderboard = load_leaderboard()
-                            if len(leaderboard) < 10 or elapsed_time < leaderboard[-1][1]:
-                                prompt_username(elapsed_time)
-                                update_leaderboard(username, elapsed_time)
-            elif event.type == pygame.VIDEORESIZE:
-                SCREEN_WIDTH, SCREEN_HEIGHT = event.w, event.h
-                SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
             elif game_over:
-                if event.type == pygame.MOUSEBUTTONDOWN:
+                play_again_hovered, main_menu_hovered = draw_end_screen()
+                mouse_pos = pygame.mouse.get_pos()
+                if pygame.mouse.get_pressed()[0]:
                     if play_again_hovered:
                         game_active = True
                         game_over = False
@@ -415,43 +449,23 @@ def main():
                         scroll_offset = 0
                     elif main_menu_hovered:
                         game_active = False
-                        main_menu()
+                        state = STATE_MAIN_MENU  # Update state to main menu
 
-        if game_active and not game_over:
-            quit_hovered, restart_hovered = draw_text()
-            mouse_pos = pygame.mouse.get_pos()
-            if pygame.mouse.get_pressed()[0]:
-                if quit_hovered:
-                    game_active = False
-                elif restart_hovered:
-                    game_active = True
-                    game_over = False
-                    user_input = ""
-                    text_index = 0
-                    current_text = texts[text_index]
-                    start_time = 0
-                    typing_started = False
-                    scroll_offset = 0
-        elif game_over:
-            play_again_hovered, main_menu_hovered = draw_end_screen()
-            mouse_pos = pygame.mouse.get_pos()
-            if pygame.mouse.get_pressed()[0]:
-                if play_again_hovered:
-                    game_active = True
-                    game_over = False
-                    user_input = ""
-                    text_index = 0
-                    current_text = texts[text_index]
-                    start_time = 0
-                    typing_started = False
-                    scroll_offset = 0
-                elif main_menu_hovered:
-                    game_active = False
-                    main_menu()
-        else:
-            main_menu()
-
-        clock.tick(30)
+            clock.tick(30)
+        elif state == STATE_LEADERBOARD:
+            while state == STATE_LEADERBOARD:
+                back_hovered = draw_leaderboard()
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        sys.exit()
+                    elif event.type == pygame.MOUSEBUTTONDOWN:
+                        if back_hovered:
+                            state = STATE_MAIN_MENU  # Update state to main menu
+                    elif event.type == pygame.VIDEORESIZE:
+                        SCREEN_WIDTH, SCREEN_HEIGHT = event.w, event.h
+                        SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
 
 if __name__ == "__main__":
     main()
+

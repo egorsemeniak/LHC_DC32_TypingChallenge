@@ -1,11 +1,3 @@
-# v0.0.8
-
-""" 
-Typing Challenge for DEF CON 32
-This challenge will be hosted at the LHC Room
-"""
-
-# Importing Packages
 import pygame
 import sys
 import time
@@ -14,13 +6,14 @@ import os
 # Initialize Pygame
 pygame.init()
 
-# Screen dimensions
+# Global screen dimensions
 SCREEN = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 SCREEN_WIDTH, SCREEN_HEIGHT = SCREEN.get_size()
 pygame.display.set_caption("Typing Minigame")
 
 # Fonts and Colors
 FONT = pygame.font.Font(pygame.font.match_font('courier'), 36)
+NEON_FONT = pygame.font.Font(pygame.font.match_font('courier'), 72)
 BUTTON_FONT = pygame.font.Font(None, 48)
 TIMER_FONT = pygame.font.Font(None, 36)
 LEADERBOARD_FONT = pygame.font.Font(None, 36)
@@ -38,6 +31,11 @@ COLOR_FIRST = (255, 165, 0)  # Orange
 COLOR_SECOND = (128, 0, 128)  # Purple
 COLOR_THIRD = (0, 0, 255)  # Blue
 
+# Neon Colors
+NEON_COLOR = (255, 38, 138)  # Pantone 219C
+GLOW_COLOR = (255, 105, 180)
+SHADOW_COLOR = (0, 0, 0)
+
 # Paths
 ASSETS_FOLDER = 'assets'
 LEADERBOARD_FILE = os.path.join(ASSETS_FOLDER, 'leaderboard.txt')
@@ -48,8 +46,16 @@ background = pygame.image.load(BACKGROUND_IMAGE)
 background = pygame.transform.scale(background, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
 # Pre-planned texts
+
+"""
 texts = [
-    "a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a"
+    "Zero Cool? Crashed fifteen hundred and seven computers in one day? Biggest crash in history, front page New York Times August 10th, 1988. I thought you was black man. YO THIS IS ZERO COOL!"
+]
+
+"""
+
+texts = [
+    "Zero Cool? Crashed fifteen hundred and seven computers in one day? Biggest crash in history, front page New York Times August 10th, 1988. I thought you was black man. YO THIS IS ZERO COOL!"
 ]
 
 # Game state
@@ -72,6 +78,12 @@ STATE_LEADERBOARD = 3
 
 state = STATE_MAIN_MENU
 
+def calculate_wpm(elapsed_time):
+    word_count = len(current_text.split())
+    minutes = elapsed_time / 60
+    wpm = word_count / minutes
+    return round(wpm, 2)
+
 def draw_text():
     global SCREEN, scroll_offset
     SCREEN.fill(COLOR_BG)
@@ -79,12 +91,15 @@ def draw_text():
     y_offset = SCREEN.get_height() // 2  # Center text vertically
     cursor_x = x_offset + len(user_input) * FONT.size(' ')[0]  # Calculate cursor x position
 
+    has_mistake = False  # Flag to track if there is a mistake
+
     for i, char in enumerate(current_text):
         if i < len(user_input):
             if user_input[i] == char:
                 color = COLOR_TEXT_CORRECT
             else:
                 color = COLOR_TEXT_INCORRECT
+                has_mistake = True  # Set the flag if there's a mistake
         else:
             color = COLOR_TEXT_FADED
         text_surface = FONT.render(char, True, color)
@@ -113,7 +128,14 @@ def draw_text():
     # Draw the quit and restart buttons
     mouse_pos = pygame.mouse.get_pos()
     quit_hovered = draw_button("Quit (Ctrl+Q)", (SCREEN.get_width() - 150, 50), (SCREEN.get_width() - 200 <= mouse_pos[0] <= SCREEN.get_width() - 100) and (25 <= mouse_pos[1] <= 75)).collidepoint(mouse_pos)
-    restart_hovered = draw_button("Restart (Ctrl+R)", (SCREEN.get_width() - 400, 50), (SCREEN.get_width() - 450 <= mouse_pos[0] <= SCREEN.get_width() - 350) and (25 <= mouse_pos[1] <= 75)).collidepoint(mouse_pos)
+    restart_hovered = draw_button("Restart (Ctrl+N)", (SCREEN.get_width() - 400, 50), (SCREEN.get_width() - 450 <= mouse_pos[0] <= SCREEN.get_width() - 350) and (25 <= mouse_pos[1] <= 75)).collidepoint(mouse_pos)
+
+    # Draw the warning message if there's a mistake
+    if has_mistake:
+        warning_text = "All text must be correct for the game to end."
+        warning_surface = TIMER_FONT.render(warning_text, True, COLOR_TEXT_INCORRECT)
+        SCREEN.blit(warning_surface, (SCREEN.get_width() // 2 - warning_surface.get_width() // 2, SCREEN.get_height() // 2 + 50))
+
     pygame.display.flip()
 
     return quit_hovered, restart_hovered
@@ -131,12 +153,16 @@ def draw_end_screen():
     SCREEN.fill(COLOR_BG)
 
     elapsed_time = end_time - start_time
+    wpm = calculate_wpm(elapsed_time)
     minutes = int(elapsed_time // 60)
     seconds = int(elapsed_time % 60)
     milliseconds = int((elapsed_time * 1000) % 1000)
     timer_text = f"Completed in: {minutes:02}:{seconds:02}:{milliseconds:03}"
+    wpm_text = f"Words Per Minute: {wpm} WPM"
     timer_surface = TIMER_FONT.render(timer_text, True, COLOR_TIMER)
+    wpm_surface = TIMER_FONT.render(wpm_text, True, COLOR_TIMER)
     SCREEN.blit(timer_surface, (SCREEN.get_width() // 2 - 150, SCREEN.get_height() // 3))
+    SCREEN.blit(wpm_surface, (SCREEN.get_width() // 2 - 150, SCREEN.get_height() // 3 + 50))
 
     mouse_pos = pygame.mouse.get_pos()
     play_again_hovered = draw_button("Play Again", (SCREEN.get_width() // 2, SCREEN.get_height() // 2), (SCREEN.get_width() // 2 - 100 <= mouse_pos[0] <= SCREEN.get_width() // 2 + 100) and (SCREEN.get_height() // 2 - 25 <= mouse_pos[1] <= SCREEN.get_height() // 2 + 25)).collidepoint(mouse_pos)
@@ -155,12 +181,14 @@ def draw_leaderboard():
 
     for index, entry in enumerate(leaderboard):
         name, elapsed_time = entry
+        wpm = calculate_wpm(elapsed_time)
         minutes = int(elapsed_time // 60)
         seconds = int(elapsed_time % 60)
         milliseconds = int((elapsed_time * 1000) % 1000)
         time_text = f"{minutes:02}:{seconds:02}:{milliseconds:03}"
+        wpm_text = f"{wpm} WPM"
 
-        text = f"{index + 1}. {name} - {time_text}"
+        text = f"{index + 1}. {name} - {time_text} - {wpm_text}"
         text_surface = LEADERBOARD_FONT.render(text, True, COLOR_TEXT_CORRECT)
         text_rect = text_surface.get_rect(center=(SCREEN.get_width() // 2, y_offset))
 
@@ -211,7 +239,7 @@ def prompt_username(elapsed_time):
     global SCREEN, username
     SCREEN.fill(COLOR_BG)
 
-    input_box = pygame.Rect(SCREEN.get_width() // 2 - 100, SCREEN.get_height() // 2 - 25, 200, 50)
+    input_box = pygame.Rect(SCREEN.get_width() // 2 - 100, SCREEN.get_height() // 2 + 50, 200, 50)  # Adjusted y position
     color_inactive = pygame.Color('lightskyblue3')
     color_active = pygame.Color('dodgerblue2')
     color = color_active  # Set the color to active initially
@@ -219,10 +247,12 @@ def prompt_username(elapsed_time):
     done = False
     username = ''
 
+    wpm = calculate_wpm(elapsed_time)
     minutes = int(elapsed_time // 60)
     seconds = int(elapsed_time % 60)
     milliseconds = int((elapsed_time * 1000) % 1000)
     time_text = f"{minutes:02}:{seconds:02}:{milliseconds:03}"
+    wpm_text = f"Words Per Minute: {wpm} WPM"
     message_text1 = "Good Job! You are in Top 10."
     message_text2 = "Please Enter Your Handle"
     time_display_text = f"Your Time: {time_text}"
@@ -252,10 +282,12 @@ def prompt_username(elapsed_time):
         message_surface1 = TIMER_FONT.render(message_text1, True, COLOR_TIMER)
         message_surface2 = TIMER_FONT.render(message_text2, True, COLOR_TIMER)
         time_surface = TIMER_FONT.render(time_display_text, True, COLOR_TIMER)
+        wpm_surface = TIMER_FONT.render(wpm_text, True, COLOR_TIMER)
         
-        SCREEN.blit(message_surface1, (SCREEN.get_width() // 2 - message_surface1.get_width() // 2, SCREEN.get_height() // 2 - 150))
-        SCREEN.blit(message_surface2, (SCREEN.get_width() // 2 - message_surface2.get_width() // 2, SCREEN.get_height() // 2 - 100))
-        SCREEN.blit(time_surface, (SCREEN.get_width() // 2 - time_surface.get_width() // 2, SCREEN.get_height() // 2 - 50))
+        SCREEN.blit(message_surface1, (SCREEN.get_width() // 2 - message_surface1.get_width() // 2, SCREEN.get_height() // 2 - 200))
+        SCREEN.blit(message_surface2, (SCREEN.get_width() // 2 - message_surface2.get_width() // 2, SCREEN.get_height() // 2 - 150))
+        SCREEN.blit(time_surface, (SCREEN.get_width() // 2 - time_surface.get_width() // 2, SCREEN.get_height() // 2 - 100))
+        SCREEN.blit(wpm_surface, (SCREEN.get_width() // 2 - wpm_surface.get_width() // 2, SCREEN.get_height() // 2 - 50))
 
         txt_surface = INPUT_FONT.render(username, True, color)
         width = max(200, txt_surface.get_width() + 10)
@@ -272,17 +304,19 @@ def prompt_username(elapsed_time):
 
 def draw_top_3():
     leaderboard = load_leaderboard()
-    x_offset = SCREEN.get_width() - 200
+    x_offset = SCREEN.get_width() - 300  # Adjusted to shift the textboxes to the left
     y_offset = 50
 
     for index, entry in enumerate(leaderboard[:3]):
         name, elapsed_time = entry
+        wpm = calculate_wpm(elapsed_time)
         minutes = int(elapsed_time // 60)
         seconds = int(elapsed_time % 60)
         milliseconds = int((elapsed_time * 1000) % 1000)
         time_text = f"{minutes:02}:{seconds:02}:{milliseconds:03}"
+        wpm_text = f"{wpm} WPM"
 
-        text = f"{index + 1}. {name} - {time_text}"
+        text = f"{index + 1}. {name} - {time_text} - {wpm_text}"
         text_surface = LEADERBOARD_FONT.render(text, True, COLOR_TEXT_CORRECT)
         text_rect = text_surface.get_rect(center=(x_offset, y_offset))
 
@@ -297,7 +331,7 @@ def draw_top_3():
         y_offset += 50
 
 def main_menu():
-    global SCREEN, game_active, user_input, text_index, current_text, start_time, game_over, typing_started, scroll_offset, state
+    global SCREEN, game_active, user_input, text_index, current_text, start_time, game_over, typing_started, scroll_offset, state, SCREEN_WIDTH, SCREEN_HEIGHT
 
     while state == STATE_MAIN_MENU:
         SCREEN.blit(background, (0, 0))
@@ -336,7 +370,7 @@ def main_menu():
                 SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
 
 def main():
-    global SCREEN, user_input, text_index, current_text, game_active, start_time, end_time, game_over, typing_started, scroll_offset, username, state
+    global SCREEN, user_input, text_index, current_text, game_active, start_time, end_time, game_over, typing_started, scroll_offset, username, state, SCREEN_WIDTH, SCREEN_HEIGHT
 
     clock = pygame.time.Clock()
 
@@ -378,7 +412,7 @@ def main():
                         elif event.key == pygame.K_q and (pygame.key.get_mods() & pygame.KMOD_CTRL):
                             game_active = False
                             state = STATE_MAIN_MENU  # Update state to main menu
-                        elif event.key == pygame.K_r and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+                        elif event.key == pygame.K_n and (pygame.key.get_mods() & pygame.KMOD_CTRL):
                             game_active = True
                             game_over = False
                             user_input = ""
@@ -449,7 +483,7 @@ def main():
                         scroll_offset = 0
                     elif main_menu_hovered:
                         game_active = False
-                        state = STATE_MAIN_MENU  # Update state to main menu
+                        state = STATE_MAIN_MENU
 
             clock.tick(30)
         elif state == STATE_LEADERBOARD:
@@ -468,4 +502,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
